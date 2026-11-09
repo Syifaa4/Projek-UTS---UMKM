@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "324416877010",
+    "project_id": "umkm-copilot-4233d",
+    "storage_bucket": "umkm-copilot-4233d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:324416877010:android:41134e833981cf32ee180b",
+        "android_client_info": {
+          "package_name": "com.example.umkm_copilot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxlki-zXn1jyWwsQaqeagtgfsQCxu8jwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
