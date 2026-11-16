@@ -12,7 +12,20 @@
           "package_name": "com.example.umkm_copilot"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "324416877010-5gba97f5ga0v49cdqlvfai23pv3kd49q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.umkm_copilot",
+            "certificate_hash": "c38a4d486fb1db20ff77c4366ae0f994b96fdb6e"
+          }
+        },
+        {
+          "client_id": "324416877010-okiq405jtd8thccsorggrpub33g1et7b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDxlki-zXn1jyWwsQaqeagtgfsQCxu8jwk"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "324416877010-okiq405jtd8thccsorggrpub33g1et7b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -46,3 +46,12 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Rahasia sungguhan, jangan pernah di-commit
+.env
+*.env
+*-adminsdk-*.json
+serviceAccount*.json
+android/key.properties
+*.jks
+*.keystore
