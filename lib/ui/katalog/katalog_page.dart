@@ -6,9 +6,15 @@ import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
+import '../widgets/state_view.dart';
 
 class ProdukKatalog {
-  ProdukKatalog({required this.id, required this.nama, required this.harga, required this.gambar});
+  ProdukKatalog({
+    required this.id,
+    required this.nama,
+    required this.harga,
+    required this.gambar,
+  });
   final int id;
   final String nama, gambar;
   final double harga;
@@ -25,9 +31,12 @@ class KatalogService {
   Future<List<ProdukKatalog>> ambil(String kata) async {
     final uri = kata.isEmpty
         ? Uri.parse('https://dummyjson.com/products/category/groceries')
-        : Uri.parse('https://dummyjson.com/products/search?q=$kata');
+        : Uri.parse(
+            'https://dummyjson.com/products/search?q=${Uri.encodeQueryComponent(kata)}');
     final res = await http.get(uri).timeout(const Duration(seconds: 10));
-    if (res.statusCode != 200) throw Exception('Server error ${res.statusCode}');
+    if (res.statusCode != 200) {
+      throw Exception('Server error ${res.statusCode}');
+    }
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return (data['products'] as List)
         .map((e) => ProdukKatalog.fromJson(e as Map<String, dynamic>))
@@ -59,7 +68,6 @@ class _KatalogPageState extends State<KatalogPage> {
   Widget build(BuildContext context) {
     final c = context.dg;
     return Scaffold(
-      extendBody: true,
       appBar: AppBar(title: const Text('Katalog produk')),
       body: Column(children: [
         Padding(
@@ -70,7 +78,8 @@ class _KatalogPageState extends State<KatalogPage> {
             onSubmitted: (_) => _muat(),
             decoration: dekorasi(context, 'Cari produk').copyWith(
               prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _muat),
+              suffixIcon: IconButton(
+                  icon: const Icon(Icons.arrow_forward), onPressed: _muat),
             ),
           ),
         ),
@@ -82,20 +91,21 @@ class _KatalogPageState extends State<KatalogPage> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snap.hasError) {
-                return Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.wifi_off, size: 48, color: c.textSecondary),
-                    const SizedBox(height: 8),
-                    const Text('Gagal memuat katalog'),
-                    TextButton(onPressed: _muat, child: const Text('Coba lagi')),
-                  ]),
+                return StateView(
+                  gambar: 'assets/images/no-internet.png',
+                  judul: 'Tidak ada koneksi',
+                  pesan: 'Periksa internet Anda, lalu coba lagi.',
+                  tombol: 'Coba lagi',
+                  aksi: _muat,
                 );
               }
               final list = snap.data ?? [];
               if (list.isEmpty) {
-                return Center(
-                    child: Text('Produk tidak ditemukan',
-                        style: TextStyle(color: c.textSecondary)));
+                return const StateView(
+                  gambar: 'assets/images/not-found.png',
+                  judul: 'Produk tidak ditemukan',
+                  pesan: 'Coba kata kunci lain.',
+                );
               }
               return GridView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -110,47 +120,51 @@ class _KatalogPageState extends State<KatalogPage> {
                   return GlassCard(
                     padding: const EdgeInsets.all(10),
                     radius: 20,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            width: double.infinity,
-                            color: c.chip,
-                            child: Image.network(p.gambar,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.image_not_supported_outlined)),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                width: double.infinity,
+                                color: c.chip,
+                                child: Image.network(p.gambar,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => const Icon(
+                                        Icons.image_not_supported_outlined)),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(p.nama,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      Text('\$${p.harga.toStringAsFixed(2)}',
-                          style: TextStyle(
-                              color: c.isDark ? c.accent : c.warning,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13)),
-                      const SizedBox(height: 6),
-                      SizedBox(
-                        height: 34,
-                        width: double.infinity,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                              minimumSize: Size.zero,
-                              padding: EdgeInsets.zero,
-                              textStyle: const TextStyle(fontSize: 12)),
-                          onPressed: () => ScaffoldMessenger.of(context)
-                            ..clearSnackBars()
-                            ..showSnackBar(SnackBar(
-                                content: Text('${p.nama} ditambahkan ke produk saya'))),
-                          child: const Text('Tambah ke produk saya'),
-                        ),
-                      ),
-                    ]),
+                          const SizedBox(height: 8),
+                          Text(p.nama,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13)),
+                          Text('\$${p.harga.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                  color: c.isDark ? c.accent : c.warning,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13)),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            height: 34,
+                            width: double.infinity,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                  minimumSize: Size.zero,
+                                  padding: EdgeInsets.zero,
+                                  textStyle: const TextStyle(fontSize: 12)),
+                              onPressed: () => ScaffoldMessenger.of(context)
+                                ..clearSnackBars()
+                                ..showSnackBar(SnackBar(
+                                    content: Text(
+                                        '${p.nama} ditambahkan ke produk saya'))),
+                              child: const Text('Tambah ke produk saya'),
+                            ),
+                          ),
+                        ]),
                   );
                 },
               );

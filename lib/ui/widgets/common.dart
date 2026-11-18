@@ -93,7 +93,7 @@ class SectionTitle extends StatelessWidget {
         child: Text(teks,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
       ),
-      if (trailing != null) trailing!,
+      trailing!,
     ]);
   }
 }

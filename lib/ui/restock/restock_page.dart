@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
+import '../widgets/state_view.dart';
 
 class _Item {
   _Item({
@@ -38,6 +39,7 @@ class RestockPage extends StatefulWidget {
 
 class _RestockPageState extends State<RestockPage> {
   static const _kas = 1200000;
+  static const _status = ['menunggu', 'disetujui', 'ditolak'];
   int _tab = 0;
 
   final _items = <_Item>[
@@ -59,8 +61,6 @@ class _RestockPageState extends State<RestockPage> {
       status: 'disetujui', lama: true,
     ),
   ];
-
-  static const _status = ['menunggu', 'disetujui', 'ditolak'];
 
   int get _terpakai => _items
       .where((e) => e.status == 'disetujui' && !e.lama)
@@ -85,7 +85,8 @@ class _RestockPageState extends State<RestockPage> {
     );
     if (kirim != true || !mounted) return;
     setState(() => i.status = 'disetujui');
-    final url = Uri.parse('https://wa.me/${i.wa}?text=${Uri.encodeComponent(pesan)}');
+    final url =
+        Uri.parse('https://wa.me/${i.wa}?text=${Uri.encodeComponent(pesan)}');
     final ok = await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!ok && mounted) _snack('WhatsApp tidak bisa dibuka di perangkat ini');
   }
@@ -114,7 +115,9 @@ class _RestockPageState extends State<RestockPage> {
   @override
   Widget build(BuildContext context) {
     final c = context.dg;
-    final counts = [for (final s in _status) _items.where((e) => e.status == s).length];
+    final counts = [
+      for (final s in _status) _items.where((e) => e.status == s).length
+    ];
     final daftar = _items.where((e) => e.status == _status[_tab]).toList();
 
     return ListView(
@@ -126,32 +129,36 @@ class _RestockPageState extends State<RestockPage> {
         Text('Aplikasi menyiapkan, pemilik memutuskan.',
             style: TextStyle(color: c.textSecondary, fontSize: 13)),
         const SizedBox(height: 14),
-
         GlassCard(
           blur: true,
           child: Row(children: [
             IconTile(
                 warna: c.accent,
-                child: Icon(Icons.account_balance_wallet_outlined, color: c.warning)),
+                child: Icon(Icons.account_balance_wallet_outlined,
+                    color: c.warning)),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('KAS BELANJA TERSEDIA',
-                    style: TextStyle(
-                        color: c.textSecondary,
-                        fontSize: 11,
-                        letterSpacing: 0.8,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text(rp(_kasSisa),
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: c.isDark ? c.accent : c.brand)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('KAS BELANJA TERSEDIA',
+                        style: TextStyle(
+                            color: c.textSecondary,
+                            fontSize: 11,
+                            letterSpacing: 0.8,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(rp(_kasSisa),
+                        style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: c.isDark ? c.accent : c.brand)),
+                  ]),
             ),
-            Pill(_terpakai == 0 ? 'Aman' : 'Terpakai ${rpSingkat(_terpakai)}',
-                warna: _kasSisa > 0 ? c.masuk : c.keluar, ikon: Icons.verified_user_outlined),
+            Pill(
+                _terpakai == 0 ? 'Aman' : 'Terpakai ${rpSingkat(_terpakai)}',
+                warna: _kasSisa > 0 ? c.masuk : c.keluar,
+                ikon: Icons.verified_user_outlined),
           ]),
         ),
         const SizedBox(height: 14),
@@ -162,28 +169,22 @@ class _RestockPageState extends State<RestockPage> {
           onChanged: (v) => setState(() => _tab = v),
         ),
         const SizedBox(height: 14),
-
         if (daftar.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 48),
-            child: Column(children: [
-              Icon(Icons.inventory_2_outlined, size: 56, color: c.textSecondary),
-              const SizedBox(height: 12),
-              Text(_tab == 0 ? 'Semua stok aman' : 'Belum ada data',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text(_tab == 0 ? 'Tidak ada yang perlu dipesan hari ini.' : 'Daftar masih kosong.',
-                  style: TextStyle(color: c.textSecondary)),
-            ]),
+          StateView(
+            gambar: _tab == 0
+                ? 'assets/images/growth.png'
+                : 'assets/images/not-found.png',
+            judul: _tab == 0 ? 'Semua stok aman' : 'Belum ada data',
+            pesan: _tab == 0
+                ? 'Tidak ada yang perlu dipesan hari ini.'
+                : 'Daftar ini masih kosong.',
           )
         else
           for (final i in daftar)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: Muncul(
-                  child: _tab == 0
-                      ? _kartu(context, i)
-                      : _ringkas(context, i)),
+                  child: _tab == 0 ? _kartu(context, i) : _ringkas(context, i)),
             ),
       ],
     );
@@ -207,23 +208,29 @@ class _RestockPageState extends State<RestockPage> {
               child: Text(i.emoji, style: const TextStyle(fontSize: 28))),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Pill('${i.sisaLabel} (${i.sisaHari} hari)',
-                  warna: i.sisaHari <= 3 ? c.keluar : c.warning),
-              const SizedBox(height: 6),
-              Text(i.nama,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 2),
-              Row(children: [
-                Icon(Icons.local_shipping_outlined, size: 14, color: c.textSecondary),
-                const SizedBox(width: 4),
-                Expanded(child: Text(i.supplier, style: sec, overflow: TextOverflow.ellipsis)),
-              ]),
-              if (i.spike.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Pill(i.spike, warna: c.info, ikon: Icons.trending_up),
-              ],
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Pill('${i.sisaLabel} (${i.sisaHari} hari)',
+                      warna: i.sisaHari <= 3 ? c.keluar : c.warning),
+                  const SizedBox(height: 6),
+                  Text(i.nama,
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    Icon(Icons.local_shipping_outlined,
+                        size: 14, color: c.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                        child: Text(i.supplier,
+                            style: sec, overflow: TextOverflow.ellipsis)),
+                  ]),
+                  if (i.spike.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Pill(i.spike, warna: c.info, ikon: Icons.trending_up),
+                  ],
+                ]),
           ),
         ]),
         const SizedBox(height: 14),
@@ -238,19 +245,25 @@ class _RestockPageState extends State<RestockPage> {
               Text('Usulan jumlah', style: sec),
               const Spacer(),
               Text('${i.qty} ${i.satuan}',
-                  style: TextStyle(fontWeight: FontWeight.w800, color: c.info)),
+                  style:
+                      TextStyle(fontWeight: FontWeight.w800, color: c.info)),
             ]),
             const Divider(height: 20),
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Estimasi biaya', style: sec),
                 Text(rp(i.total),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w900)),
               ]),
               const Spacer(),
-              Pill(kurang ? 'Kas kurang ${rp(selisih)}' : 'Kas cukup',
-                  warna: kurang ? c.keluar : c.masuk,
-                  ikon: kurang ? Icons.warning_amber_rounded : Icons.check_circle_outline),
+              Flexible(
+                child: Pill(kurang ? 'Kas kurang ${rp(selisih)}' : 'Kas cukup',
+                    warna: kurang ? c.keluar : c.masuk,
+                    ikon: kurang
+                        ? Icons.warning_amber_rounded
+                        : Icons.check_circle_outline),
+              ),
             ]),
           ]),
         ),
@@ -264,14 +277,22 @@ class _RestockPageState extends State<RestockPage> {
                   color: c.warning)),
           const SizedBox(height: 8),
           if (maxQty > 0)
-            _opsi(context, '1', 'Pesan $maxQty ${i.satuan} saja (${rp(maxQty * i.hargaBeli)})',
-                'Sesuai kas yang ada', () => setState(() => i.qty = maxQty)),
-          if (tahap1 * i.hargaBeli <= _kasSisa && tahap1 > 0) ...[
+            _opsi(
+                context,
+                '1',
+                'Pesan $maxQty ${i.satuan} saja (${rp(maxQty * i.hargaBeli)})',
+                'Sesuai kas yang ada',
+                () => setState(() => i.qty = maxQty)),
+          if (tahap1 > 0 && tahap1 * i.hargaBeli <= _kasSisa) ...[
             const SizedBox(height: 8),
-            _opsi(context, '2', 'Pesan 2 tahap ($tahap1 sekarang, ${i.qty - tahap1} nanti)',
+            _opsi(
+                context,
+                '2',
+                'Pesan 2 tahap ($tahap1 sekarang, ${i.qty - tahap1} nanti)',
                 'Arus kas lebih ringan', () {
+              final sisaTahap = i.qty - tahap1;
               setState(() => i.qty = tahap1);
-              _snack('Tahap 2 (${i.qty} ${i.satuan}) ingat dipesan lagi nanti');
+              _snack('Tahap 2 ($sisaTahap ${i.satuan}) ingat dipesan lagi nanti');
             }),
           ],
         ],
@@ -296,7 +317,8 @@ class _RestockPageState extends State<RestockPage> {
               style: OutlinedButton.styleFrom(
                   minimumSize: const Size(0, 48),
                   padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16))),
               onPressed: () => _ubah(i),
               icon: const Icon(Icons.edit_outlined, size: 17),
               label: const Text('Ubah'),
@@ -311,7 +333,8 @@ class _RestockPageState extends State<RestockPage> {
                   padding: EdgeInsets.zero,
                   foregroundColor: c.keluar,
                   side: BorderSide(color: c.keluar.withValues(alpha: 0.5)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16))),
               onPressed: () => _tolak(i),
               icon: const Icon(Icons.close, size: 18),
               label: const Text('Tolak'),
@@ -338,13 +361,19 @@ class _RestockPageState extends State<RestockPage> {
           CircleAvatar(
               radius: 13,
               backgroundColor: c.accent.withValues(alpha: 0.25),
-              child: Text(no, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),
+              child: Text(no,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w800))),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(judul, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              Text(sub, style: TextStyle(color: c.masuk, fontSize: 11)),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(judul,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 13)),
+                  Text(sub, style: TextStyle(color: c.masuk, fontSize: 11)),
+                ]),
           ),
           Icon(Icons.chevron_right, color: c.textSecondary),
         ]),
@@ -359,17 +388,22 @@ class _RestockPageState extends State<RestockPage> {
       padding: const EdgeInsets.all(14),
       radius: 20,
       child: Row(children: [
-        IconTile(warna: c.accent, child: Text(i.emoji, style: const TextStyle(fontSize: 22))),
+        IconTile(
+            warna: c.accent,
+            child: Text(i.emoji, style: const TextStyle(fontSize: 22))),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(i.nama, style: const TextStyle(fontWeight: FontWeight.w800)),
-            Text(
-                ditolak
-                    ? 'Alasan: ${i.alasan ?? '-'}'
-                    : '${i.qty} ${i.satuan} • ${i.supplier}',
-                style: TextStyle(color: c.textSecondary, fontSize: 12)),
-          ]),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(i.nama,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                    ditolak
+                        ? 'Alasan: ${i.alasan ?? '-'}'
+                        : '${i.qty} ${i.satuan} • ${i.supplier}',
+                    style: TextStyle(color: c.textSecondary, fontSize: 12)),
+              ]),
         ),
         if (ditolak)
           TextButton(
@@ -384,7 +418,8 @@ class _RestockPageState extends State<RestockPage> {
 }
 
 class _WaSheet extends StatelessWidget {
-  const _WaSheet({required this.item, required this.pesan, required this.kasSisa});
+  const _WaSheet(
+      {required this.item, required this.pesan, required this.kasSisa});
   final _Item item;
   final String pesan;
   final int kasSisa;
@@ -397,7 +432,8 @@ class _WaSheet extends StatelessWidget {
         const Text('Pesan siap dikirim',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        Text('WhatsApp akan terbuka dengan pesan sudah terisi. Anda yang menekan kirim.',
+        Text(
+            'WhatsApp akan terbuka dengan pesan sudah terisi. Anda yang menekan kirim.',
             style: TextStyle(color: c.textSecondary, fontSize: 13)),
         const SizedBox(height: 14),
         Row(children: [
@@ -420,12 +456,14 @@ class _WaSheet extends StatelessWidget {
           Text('Total ${rp(item.total)}',
               style: const TextStyle(fontWeight: FontWeight.w800)),
           Text('Sisa kas ${rp(kasSisa)}',
-              style: TextStyle(color: c.masuk, fontWeight: FontWeight.w700, fontSize: 13)),
+              style: TextStyle(
+                  color: c.masuk, fontWeight: FontWeight.w700, fontSize: 13)),
         ]),
         const SizedBox(height: 16),
         FilledButton.icon(
           style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF25A862), foregroundColor: Colors.white),
+              backgroundColor: const Color(0xFF25A862),
+              foregroundColor: Colors.white),
           onPressed: () => Navigator.pop(context, true),
           icon: const Icon(Icons.send),
           label: const Text('Kirim lewat WhatsApp'),
@@ -461,19 +499,24 @@ class _UbahSheetState extends State<_UbahSheet> {
     return SheetBox(
       child: Column(children: [
         Text('Ubah jumlah ${widget.item.nama}',
+            textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
         const SizedBox(height: 18),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          tombolBulat(context, Icons.remove, _qty > 1 ? () => setState(() => _qty--) : null),
+          tombolBulat(
+              context, Icons.remove, _qty > 1 ? () => setState(() => _qty--) : null),
           SizedBox(
             width: 120,
             child: Column(children: [
               Text('$_qty',
-                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
-              Text(widget.item.satuan, style: TextStyle(color: c.textSecondary)),
+                  style:
+                      const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
+              Text(widget.item.satuan,
+                  style: TextStyle(color: c.textSecondary)),
             ]),
           ),
-          tombolBulat(context, Icons.add, () => setState(() => _qty++), utama: true),
+          tombolBulat(context, Icons.add, () => setState(() => _qty++),
+              utama: true),
         ]),
         const SizedBox(height: 16),
         Container(
@@ -507,7 +550,12 @@ class _TolakDialog extends StatefulWidget {
 
 class _TolakDialogState extends State<_TolakDialog> {
   String _pilih = 'Masih banyak stok';
-  static const _alasan = ['Masih banyak stok', 'Kas kurang', 'Harga naik', 'Lainnya'];
+  static const _alasan = [
+    'Masih banyak stok',
+    'Kas kurang',
+    'Harga naik',
+    'Lainnya'
+  ];
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -521,7 +569,8 @@ class _TolakDialogState extends State<_TolakDialog> {
         ]),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal')),
           TextButton(
               onPressed: () => Navigator.pop(context, _pilih),
               child: const Text('Tolak')),
