@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'data/app_store.dart';
 import 'firebase_options.dart';
 import 'ui/auth/login_page.dart';
 import 'ui/shell/app_shell.dart';
@@ -17,7 +18,10 @@ Future<void> main() async {
   await tema.muat();
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider.value(value: tema)],
+      providers: [
+        ChangeNotifierProvider.value(value: tema),
+        ChangeNotifierProvider(create: (_) => AppStore()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -28,22 +32,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mode = context.watch<ThemeController>().mode;
+    final tema = context.watch<ThemeController>();
     return MaterialApp(
       title: 'DAGIRA',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.terang,
       darkTheme: AppTheme.gelap,
-      themeMode: mode,
-      // Latar dipasang sekali di sini, jadi login dan semua layar ikut
-      builder: (context, child) => GlassBackground(child: child!),
+      themeMode: tema.mode,
+      builder: (context, child) => GlassBackground(
+        child: MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(tema.skalaTeks)),
+          child: child!,
+        ),
+      ),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+                body: Center(child: CircularProgressIndicator()));
           }
           return snap.data == null ? const LoginPage() : const AppShell();
         },

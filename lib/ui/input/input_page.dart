@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../data/app_store.dart';
+import '../../data/models.dart';
+import '../produk/produk_page.dart';
+import '../scan/scan_page.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
-
-class _Produk {
-  const _Produk(this.nama, this.emoji, this.harga);
-  final String nama, emoji;
-  final int harga;
-}
 
 class InputPage extends StatefulWidget {
   const InputPage({super.key});
@@ -18,50 +17,16 @@ class InputPage extends StatefulWidget {
 }
 
 class _InputPageState extends State<InputPage> {
-  static const _produk = [
-    _Produk('Minyak Goreng 2L', '🧴', 34000),
-    _Produk('Beras Ramos 5kg', '🌾', 72000),
-    _Produk('Gula Pasir 1kg', '🍬', 17500),
-    _Produk('Mie Instan Goreng', '🍜', 3500),
-    _Produk('Teh Celup Kotak', '🍵', 7000),
-    _Produk('Kopi Sachet Renceng', '☕', 15000),
-  ];
-
   int _tab = 0;
-  late final List<int> _qty = List.filled(_produk.length, 0);
+  final Map<String, int> _qty = {};
   final _nominal = TextEditingController();
   final _ket = TextEditingController();
   final _omzet = TextEditingController();
   String? _kategori, _errNominal, _errOmzet;
 
-  int get _items => _qty.fold(0, (a, b) => a + b);
-  int get _total {
-    var t = 0;
-    for (var i = 0; i < _produk.length; i++) {
-      t += _qty[i] * _produk[i].harga;
-    }
-    return t;
-  }
-
   static const _kategoriList = [
     'Transportasi', 'Listrik & Air', 'Gaji / Upah', 'Kemasan', 'Belanja Stok', 'Lainnya'
   ];
-
-  // Tebakan kategori dari kata kunci (tanpa AI)
-  String? _tebak(String teks) {
-    final s = teks.toLowerCase();
-    const peta = {
-      'Transportasi': ['bensin', 'ojek', 'parkir', 'tol', 'antar'],
-      'Listrik & Air': ['listrik', 'token', 'pdam', 'air'],
-      'Gaji / Upah': ['gaji', 'upah', 'bon'],
-      'Kemasan': ['plastik', 'kardus', 'kantong', 'kemasan'],
-      'Belanja Stok': ['kulakan', 'stok', 'beli barang'],
-    };
-    for (final e in peta.entries) {
-      if (e.value.any((k) => s.contains(k))) return e.key;
-    }
-    return null;
-  }
 
   int? _angka(String s) => int.tryParse(s.replaceAll('.', '').trim());
 
@@ -71,13 +36,14 @@ class _InputPageState extends State<InputPage> {
       ..showSnackBar(SnackBar(content: Text(t), action: aksi));
   }
 
-  void _tambah(int i, int d) {
-    if (_qty[i] + d < 0) return;
-    setState(() => _qty[i] += d);
-    if (d > 0) {
-      _snack('${_produk[i].nama} +1',
-          aksi: SnackBarAction(label: 'Urungkan', onPressed: () => setState(() => _qty[i]--)));
+  void _ubahQty(AppStore s, Produk p, int d) {
+    final now = _qty[p.id] ?? 0;
+    if (d > 0 && now >= p.stok) {
+      _snack('Stok ${p.nama} tinggal ${p.stok} ${p.satuan}. Koreksi di Produk saya jika tidak sesuai.');
+      return;
     }
+    if (now + d < 0) return;
+    setState(() => _qty[p.id] = now + d);
   }
 
   @override
@@ -93,7 +59,7 @@ class _InputPageState extends State<InputPage> {
     final c = context.dg;
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         child: ChipTabs(
           labels: const ['Penjualan', 'Pengeluaran', 'Omzet saja'],
           index: _tab,
@@ -101,15 +67,21 @@ class _InputPageState extends State<InputPage> {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
         child: Row(children: [
-          Icon(Icons.cloud_done_outlined, size: 16, color: c.masuk),
-          const SizedBox(width: 6),
-          Text('Tersinkron • siap offline',
-              style: TextStyle(color: c.textSecondary, fontSize: 12)),
+          Expanded(
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 42),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              onPressed: () => Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => const ScanPage())),
+              icon: Icon(Icons.document_scanner_outlined, size: 18, color: c.warning),
+              label: const Text('Scan struk / catatan'),
+            ),
+          ),
         ]),
       ),
-      const SizedBox(height: 8),
       Expanded(
         child: switch (_tab) {
           0 => _penjualan(context),
@@ -122,19 +94,38 @@ class _InputPageState extends State<InputPage> {
 
   Widget _penjualan(BuildContext context) {
     final c = context.dg;
+    final s = context.watch<AppStore>();
+    final list = s.produk.where((p) => p.aktif).toList();
+    var items = 0, total = 0;
+    for (final p in list) {
+      final q = _qty[p.id] ?? 0;
+      items += q;
+      total += q * p.hargaJual;
+    }
     return Column(children: [
       Expanded(
         child: GridView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              mainAxisExtent: 176),
-          itemCount: _produk.length,
+              crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, mainAxisExtent: 184),
+          itemCount: list.length + 1,
           itemBuilder: (_, i) {
-            final p = _produk[i];
-            final aktif = _qty[i] > 0;
+            if (i == list.length) {
+              return GestureDetector(
+                onTap: () => showProdukSheet(context),
+                child: GlassCard(
+                  radius: 22,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.add_circle_outline, size: 36, color: c.warning),
+                    const SizedBox(height: 8),
+                    const Text('Tambah produk',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              );
+            }
+            final p = list[i];
+            final q = _qty[p.id] ?? 0;
             return GlassCard(
               padding: const EdgeInsets.all(12),
               radius: 22,
@@ -144,27 +135,29 @@ class _InputPageState extends State<InputPage> {
                       warna: c.accent,
                       child: Text(p.emoji, style: const TextStyle(fontSize: 24))),
                   const Spacer(),
-                  if (aktif) Pill('${_qty[i]}', warna: c.warning),
+                  if (q > 0) Pill('$q', warna: c.warning),
                 ]),
                 const SizedBox(height: 8),
                 Text(p.nama,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                Text(rp(p.harga),
+                Text(rp(p.hargaJual),
                     style: TextStyle(
                         color: c.isDark ? c.accent : c.warning,
                         fontWeight: FontWeight.w800,
                         fontSize: 13)),
+                Text('Stok ${p.stok} ${p.satuan}',
+                    style: TextStyle(color: c.textSecondary, fontSize: 11)),
                 const Spacer(),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  tombolBulat(context, Icons.remove, aktif ? () => _tambah(i, -1) : null),
-                  Text('${_qty[i]}',
+                  tombolBulat(context, Icons.remove, q > 0 ? () => _ubahQty(s, p, -1) : null),
+                  Text('$q',
                       style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: aktif ? c.textPrimary : c.textSecondary)),
-                  tombolBulat(context, Icons.add, () => _tambah(i, 1), utama: true),
+                          color: q > 0 ? c.textPrimary : c.textSecondary)),
+                  tombolBulat(context, Icons.add, () => _ubahQty(s, p, 1), utama: true),
                 ]),
               ]),
             );
@@ -179,19 +172,20 @@ class _InputPageState extends State<InputPage> {
           child: Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('$_items item dipilih',
+                Text('$items item dipilih',
                     style: TextStyle(color: c.textSecondary, fontSize: 12)),
-                Text(rp(_total),
+                Text(rp(total),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
               ]),
             ),
             FilledButton(
               style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-              onPressed: _items == 0
+              onPressed: items == 0
                   ? null
                   : () {
-                      _snack('Penjualan $_items barang (${rp(_total)}) tersimpan');
-                      setState(() => _qty.fillRange(0, _qty.length, 0));
+                      final t = s.catatPenjualan(Map.of(_qty));
+                      _snack('Penjualan ${rp(t)} tersimpan. Stok dan saldo diperbarui.');
+                      setState(_qty.clear);
                     },
               child: const Text('Simpan penjualan'),
             ),
@@ -203,10 +197,11 @@ class _InputPageState extends State<InputPage> {
 
   Widget _pengeluaran(BuildContext context) {
     final c = context.dg;
-    final tebakan = _tebak(_ket.text);
+    final s = context.read<AppStore>();
+    final tebakan = AppStore.tebakKategori(_ket.text);
     final terpilih = _kategori ?? tebakan;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
       children: [
         GlassCard(
           padding: const EdgeInsets.all(16),
@@ -263,7 +258,9 @@ class _InputPageState extends State<InputPage> {
                   setState(() => _errNominal = 'Perlu dicek: nominal belum benar');
                   return;
                 }
-                _snack('Pengeluaran ${rp(n)} (${terpilih ?? 'Belum dikategori'}) tersimpan');
+                final kat = terpilih ?? 'Lainnya';
+                s.catatPengeluaran(n, kat, _ket.text.trim());
+                _snack('Pengeluaran ${rp(n)} ($kat) tersimpan');
                 setState(() {
                   _nominal.clear();
                   _ket.clear();
@@ -281,8 +278,9 @@ class _InputPageState extends State<InputPage> {
 
   Widget _omzetSaja(BuildContext context) {
     final c = context.dg;
+    final s = context.read<AppStore>();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
       children: [
         GlassCard(
           padding: const EdgeInsets.all(16),
@@ -307,6 +305,7 @@ class _InputPageState extends State<InputPage> {
                   setState(() => _errOmzet = 'Perlu dicek: nominal belum benar');
                   return;
                 }
+                s.catatOmzet(n);
                 _snack('Omzet ${rp(n)} tersimpan sebagai uang masuk');
                 setState(() {
                   _omzet.clear();

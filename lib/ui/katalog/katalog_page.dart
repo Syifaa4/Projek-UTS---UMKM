@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../theme/app_theme.dart';
+import '../produk/produk_page.dart';
 import '../widgets/common.dart';
 import '../widgets/glass.dart';
 import '../widgets/state_view.dart';
@@ -156,11 +157,7 @@ class _KatalogPageState extends State<KatalogPage> {
                                   minimumSize: Size.zero,
                                   padding: EdgeInsets.zero,
                                   textStyle: const TextStyle(fontSize: 12)),
-                              onPressed: () => ScaffoldMessenger.of(context)
-                                ..clearSnackBars()
-                                ..showSnackBar(SnackBar(
-                                    content: Text(
-                                        '${p.nama} ditambahkan ke produk saya'))),
+                              onPressed: () => showProdukSheet(context, namaAwal: p.nama),
                               child: const Text('Tambah ke produk saya'),
                             ),
                           ),

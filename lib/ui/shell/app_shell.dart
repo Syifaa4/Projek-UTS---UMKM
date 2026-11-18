@@ -2,12 +2,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/seed_service.dart';
+import '../../data/app_store.dart';
 import '../beranda/beranda_page.dart';
 import '../input/input_page.dart';
 import '../katalog/katalog_page.dart';
 import '../laporan/laporan_page.dart';
+import '../pengaturan/pengaturan_page.dart';
+import '../produk/produk_page.dart';
 import '../restock/restock_page.dart';
+import '../riwayat/riwayat_page.dart';
 import '../tabungan/tabungan_page.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
@@ -24,32 +27,30 @@ class _AppShellState extends State<AppShell> {
   int _index = 0;
   static const _judul = ['DAGIRA', 'Input', 'Restock', 'Laporan', 'Tabungan'];
 
-  Future<void> _isiData(User user) async {
+  void _buka(Widget page) {
     Navigator.pop(context);
-    final m = ScaffoldMessenger.of(context);
-    try {
-      await SeedService().isiDataContoh(user.uid, email: user.email);
-      m.showSnackBar(const SnackBar(content: Text('Data contoh 30 hari terisi!')));
-    } catch (e) {
-      m.showSnackBar(SnackBar(content: Text('Gagal: $e')));
-    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
-  void _bukaKatalog() {
-    Navigator.pop(context); // tutup drawer
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const KatalogPage()),
-    );
+  void _robot() {
+    final n = context.read<AppStore>().jalankanRobot();
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+          content: Text(n == 0
+              ? 'Robot selesai menghitung. Tidak ada rekomendasi baru.'
+              : 'Robot selesai. $n rekomendasi baru menunggu keputusan Anda.')));
   }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
     final c = context.dg;
+    final s = context.watch<AppStore>();
+    final menunggu = s.rekom.where((r) => r.status == 'menunggu').length;
 
     final halaman = [
-      BerandaPage(onTinjau: () => setState(() => _index = 2)),
+      BerandaPage(onGoto: (i) => setState(() => _index = i)),
       const InputPage(),
       const RestockPage(),
       const LaporanPage(),
@@ -58,7 +59,16 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       extendBody: true,
-      appBar: AppBar(title: Text(_judul[_index])),
+      appBar: AppBar(
+        title: Text(_judul[_index]),
+        actions: [
+          IconButton(
+            tooltip: 'Jalankan robot',
+            icon: const Icon(Icons.smart_toy_outlined),
+            onPressed: _robot,
+          ),
+        ],
+      ),
       drawer: Drawer(
         backgroundColor: c.card,
         child: SafeArea(
@@ -66,7 +76,8 @@ class _AppShellState extends State<AppShell> {
             UserAccountsDrawerHeader(
               decoration: BoxDecoration(color: c.brand),
               accountName: Text(user.displayName ?? 'Pemilik',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w800)),
               accountEmail: Text(user.email ?? '',
                   style: const TextStyle(color: Colors.white70)),
               currentAccountPicture: CircleAvatar(
@@ -76,21 +87,25 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
             ListTile(
-                leading: const Icon(Icons.storefront_outlined),
-                title: const Text('Katalog produk'),
-                onTap: _bukaKatalog),
-            ListTile(
                 leading: const Icon(Icons.inventory_2_outlined),
                 title: const Text('Produk saya'),
-                onTap: () => Navigator.pop(context)),
+                onTap: () => _buka(const ProdukPage())),
             ListTile(
                 leading: const Icon(Icons.local_shipping_outlined),
                 title: const Text('Supplier'),
-                onTap: () => Navigator.pop(context)),
+                onTap: () => _buka(const SupplierPage())),
             ListTile(
-                leading: const Icon(Icons.science_outlined),
-                title: const Text('Isi data contoh 30 hari'),
-                onTap: () => _isiData(user)),
+                leading: const Icon(Icons.storefront_outlined),
+                title: const Text('Katalog produk'),
+                onTap: () => _buka(const KatalogPage())),
+            ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('Riwayat & aktivitas'),
+                onTap: () => _buka(const RiwayatPage())),
+            ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Pengaturan'),
+                onTap: () => _buka(const PengaturanPage())),
             const Spacer(),
             const Divider(height: 1),
             SwitchListTile(
@@ -119,12 +134,29 @@ class _AppShellState extends State<AppShell> {
               height: 64,
               selectedIndex: _index,
               onDestinationSelected: (i) => setState(() => _index = i),
-              destinations: const [
-                NavigationDestination(icon: Icon(Icons.store_outlined), selectedIcon: Icon(Icons.store), label: 'Beranda'),
-                NavigationDestination(icon: Icon(Icons.edit_note), label: 'Input'),
-                NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Restock'),
-                NavigationDestination(icon: Icon(Icons.insights), label: 'Laporan'),
-                NavigationDestination(icon: Icon(Icons.savings_outlined), selectedIcon: Icon(Icons.savings), label: 'Tabungan'),
+              destinations: [
+                const NavigationDestination(
+                    icon: Icon(Icons.store_outlined),
+                    selectedIcon: Icon(Icons.store),
+                    label: 'Beranda'),
+                const NavigationDestination(
+                    icon: Icon(Icons.edit_note), label: 'Input'),
+                NavigationDestination(
+                    icon: Badge(
+                        isLabelVisible: menunggu > 0,
+                        label: Text('$menunggu'),
+                        child: const Icon(Icons.inventory_2_outlined)),
+                    selectedIcon: Badge(
+                        isLabelVisible: menunggu > 0,
+                        label: Text('$menunggu'),
+                        child: const Icon(Icons.inventory_2)),
+                    label: 'Restock'),
+                const NavigationDestination(
+                    icon: Icon(Icons.insights), label: 'Laporan'),
+                const NavigationDestination(
+                    icon: Icon(Icons.savings_outlined),
+                    selectedIcon: Icon(Icons.savings),
+                    label: 'Tabungan'),
               ],
             ),
           ),
